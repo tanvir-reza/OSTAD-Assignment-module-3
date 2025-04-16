@@ -1,0 +1,66 @@
+pipeline {
+    agent {
+        label 'production'
+    }
+    
+    environment {
+        WEBHOOK_URL = 'https://discord.com/api/webhooks/1361983781073977474/C_xk2G3Vh8VSQuJ66eOo_W0WVt5De9YQuA-T4klw0rrtLaphKp7Sewnm84jKyvJruxZD'
+    }
+    
+    options {
+        timestamps()
+    }
+
+    stages {
+        stage('Set Start Time') {
+            steps {
+                script {
+                    // Capture the start time
+                    env.START_TIME = sh(script: "TZ='Asia/Dhaka' date '+%Y-%m-%d %H:%M:%S'", returnStdout: true).trim()
+                }
+            }
+        }
+        stage('check connection') {
+            steps {
+                echo 'Connection Stablished'
+            }
+        }
+        stage('Cloning the github repository'){
+            steps{
+                git branch: 'main', url: 'https://github.com/tanvir-reza/OSTAD-Assignment-module-3.git'
+            }
+        }
+        stage('install the dependencies'){
+            steps{
+                sh 'npm i'
+                sh 'npm run check'
+            }
+            post{
+                success{
+                    sh """
+                        curl -X POST -H "Content-Type: application/json" \\
+                        -d '{ 
+                          "username": "server",
+                          "content": "✅ **Build Successful** 🕒 **Timestamp**: ${START_TIME}"
+                        }' $WEBHOOK_URL
+                        """
+                }
+                failure{
+                    sh """
+                        curl -X POST -H "Content-Type: application/json" \\
+                        -d '{ 
+                          "username": "server",
+                          "content": "❌ **Build Failed**  🕒 **Timestamp**: ${START_TIME}"
+                        }' $WEBHOOK_URL
+                        """
+                }
+            }
+        }
+        stage('serve the app'){
+            steps{
+                sh 'npm start'
+            }
+        }
+    }
+    
+}
